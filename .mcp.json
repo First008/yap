@@ -1,0 +1,12 @@
+{
+    "mcpServers": {
+        "yap": {
+            "type": "stdio",
+            "command": "./yap",
+            "cwd": ".",
+            "args": [
+                "--mcp"
+            ]
+        }
+    }
+}

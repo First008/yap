@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Grep",
+      "mcp__yap__review_file",
+      "mcp__yap__get_changed_files",
+      "mcp__yap__get_review_status",
+      "mcp__yap__show_diff",
+      "mcp__yap__show_message",
+      "Edit",
+      "mcp__yap__batch_review",
+      "mcp__yap__mark_reviewed",
+      "mcp__yap__speak",
+      "mcp__yap__finish_review",
+      "Bash(git *)",
+      "Bash(go *)",
+      "mcp__yap__listen",
+      "Read",
+      "Write",
+      "Glob"
+    ]
+  }
+}

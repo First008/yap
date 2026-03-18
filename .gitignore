@@ -1,0 +1,26 @@
+# Binary
+yap
+
+# Runtime state
+.yap-state.json
+.yap.sock
+
+# Config and secrets
+yap.yaml
+yap.persona.yaml
+.env
+
+# Go
+*.exe
+*.test
+*.out
+
+# Test data
+testdata/stt-bench/
+bench-record.sh
+bench-test.sh
+test-stt.sh
+test-voices.sh
+
+# macOS
+.DS_Store
