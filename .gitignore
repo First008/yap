@@ -1,5 +1,5 @@
 # Binary
-yap
+/yap
 
 # Runtime state
 .yap-state.json

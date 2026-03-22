@@ -32,6 +32,10 @@ func (m *mockGitProvider) FileDiff(path string) (string, error) {
 	return "", nil
 }
 
+func (m *mockGitProvider) StagedFileDiff(path string) (string, error) {
+	return "", nil
+}
+
 func (m *mockGitProvider) ContentHash(path string) (string, error) {
 	return m.hashes[path], nil
 }

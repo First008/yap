@@ -28,6 +28,7 @@ type App struct {
 	pttCh        *PTTChannel
 	diffCache    map[string]string // pre-cached diffs keyed by file path
 	initialFiles []fileEntry       // pre-fetched for TUI init
+	staged       bool              // review staged changes (--staged flag)
 }
 
 func NewApp(repoDir string, ttsAdapter tts.TTSAdapter, sttAdapter stt.STTAdapter) (*App, error) {
@@ -61,6 +62,7 @@ func NewApp(repoDir string, ttsAdapter tts.TTSAdapter, sttAdapter stt.STTAdapter
 // ChangedFilesSummary returns a pre-fetched summary of changed files for the Claude prompt.
 // This eliminates the need for Claude to call get_changed_files on startup.
 func (a *App) ChangedFilesSummary(staged bool) string {
+	a.staged = staged
 	a.tracker.Refresh()
 	var files []git.ChangedFile
 	var err error
@@ -212,7 +214,13 @@ func (a *App) waitForVoice(ctx context.Context) (string, error) {
 
 func (a *App) handleGetChangedFiles(ctx context.Context, params json.RawMessage) (json.RawMessage, error) {
 	a.tracker.Refresh()
-	files, err := a.git.ChangedFiles()
+	var files []git.ChangedFile
+	var err error
+	if a.staged {
+		files, err = a.git.StagedFiles()
+	} else {
+		files, err = a.git.ChangedFiles()
+	}
 	if err != nil {
 		return nil, err
 	}

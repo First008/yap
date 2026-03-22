@@ -20,6 +20,7 @@ type Provider interface {
 	ChangedFiles() ([]ChangedFile, error)
 	StagedFiles() ([]ChangedFile, error)
 	FileDiff(path string) (string, error)
+	StagedFileDiff(path string) (string, error)
 	ContentHash(path string) (string, error)
 }
 
@@ -119,6 +120,20 @@ func (g *GitProvider) FileDiff(path string) (string, error) {
 
 	// Priority 3: Untracked file
 	return g.untrackedDiff(path)
+}
+
+// StagedFileDiff returns the diff for a staged file (index vs HEAD).
+func (g *GitProvider) StagedFileDiff(path string) (string, error) {
+	out, err := g.run("diff", "--cached", "--", path)
+	if err == nil && strings.TrimSpace(out) != "" {
+		return out, nil
+	}
+	// Untracked but staged (new file) — try empty tree diff
+	out, err = g.run("diff", "--cached", "--diff-filter=A", "4b825dc642cb6eb9a060e54bf899d15f3f9382e7", "--", path)
+	if err == nil && strings.TrimSpace(out) != "" {
+		return out, nil
+	}
+	return "", fmt.Errorf("no staged diff for %s", path)
 }
 
 func (g *GitProvider) ContentHash(path string) (string, error) {

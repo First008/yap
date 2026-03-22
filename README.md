@@ -67,7 +67,7 @@ cd yap
 make build
 
 # Make yap available from anywhere
-echo 'alias yap="$(pwd)/yap"' >> ~/.zshrc  # or ~/.bashrc
+echo "alias yap='$(pwd)/yap'" >> ~/.zshrc  # or ~/.bashrc
 source ~/.zshrc
 
 # Add /yap slash command to Claude Code (global)
@@ -76,19 +76,7 @@ cp .claude/commands/yap.md ~/.claude/commands/yap.md
 
 Now you can run `yap` from any repo, or `/yap` inside Claude Code.
 
-To use yap's MCP tools from Claude Code in any project, add to `~/.claude/settings.json`:
-
-```json
-{
-  "mcpServers": {
-    "yap": {
-      "type": "stdio",
-      "command": "/absolute/path/to/yap",
-      "args": ["--mcp"]
-    }
-  }
-}
-```
+> **MCP auto-setup:** The first time you run `yap`, it automatically registers itself as an MCP server in `~/.claude/.mcp.json` and pre-approves tool permissions. No manual config needed.
 
 ### Whisper model (for local STT)
 
@@ -108,8 +96,11 @@ curl -L -o ~/.local/share/whisper-cpp/models/silero-vad.ggml.bin \
 ## Usage
 
 ```bash
-# Review local changes
+# Review local changes (unstaged + untracked)
 ./yap
+
+# Review staged changes only
+./yap --staged
 
 # Review with a focus
 ./yap --preset security

@@ -21,13 +21,19 @@ type Session struct {
 
 // Launch starts Claude CLI headlessly with the given prompt.
 // It reads Claude's stream-json output to capture the session ID.
-func Launch(prompt string) (*Session, error) {
+// mcpConfigPath is an optional path to an MCP config JSON file; if non-empty,
+// it is passed via --mcp-config so the headless session has MCP tools.
+func Launch(prompt string, mcpConfigPath string) (*Session, error) {
 	claudePath, err := exec.LookPath("claude")
 	if err != nil {
 		return nil, fmt.Errorf("claude CLI not found in PATH: %w", err)
 	}
 
-	cmd := exec.Command(claudePath, "-p", prompt, "--output-format", "stream-json", "--verbose")
+	args := []string{"-p", prompt, "--output-format", "stream-json", "--verbose"}
+	if mcpConfigPath != "" {
+		args = append(args, "--mcp-config", mcpConfigPath)
+	}
+	cmd := exec.Command(claudePath, args...)
 	cmd.Stderr = os.Stderr // let Claude's errors show
 
 	stdout, err := cmd.StdoutPipe()
