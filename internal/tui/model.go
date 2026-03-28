@@ -186,10 +186,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	// Quick next: press 'n' during PTT wait to skip voice and approve
-	if key.Matches(msg, keys.Next) && m.ptt == pttWaiting {
+	// Quick next: press 'n' during PTT wait or while speaking to skip and approve
+	if key.Matches(msg, keys.Next) && (m.ptt == pttWaiting || m.status.speaking) {
 		m.ptt = pttIdle
 		m.status.waitingPTT = false
+		m.status.speaking = false
 		m.conversation.AddMessage("next (keyboard)", "user")
 		select {
 		case m.pttCh.QuickNext <- struct{}{}:

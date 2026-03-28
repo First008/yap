@@ -114,8 +114,13 @@ func (a *App) ChangedFilesSummary(staged bool) string {
 	return sb.String()
 }
 
-func (a *App) Run(ctx context.Context) error {
+// StartIPC begins accepting IPC connections in the background.
+// Call this before launching Claude so the MCP server can connect.
+func (a *App) StartIPC(ctx context.Context) {
 	go a.ipc.Serve(ctx)
+}
+
+func (a *App) Run(ctx context.Context) error {
 
 	a.tracker.Refresh()
 
@@ -183,9 +188,7 @@ func (a *App) waitForVoice(ctx context.Context) (string, error) {
 		// User pressed space — proceed to record
 	case <-a.pttCh.QuickNext:
 		// User pressed 'n' — skip STT, return "next"
-		if a.program != nil {
-			a.program.Send(UserResponseMsg{Text: "next"})
-		}
+		// Note: model.go already adds the "next (keyboard)" message to conversation
 		return "next", nil
 	case <-ctx.Done():
 		return "", ctx.Err()
@@ -355,17 +358,42 @@ func (a *App) handleReviewFile(ctx context.Context, params json.RawMessage) (jso
 		})
 	}
 
-	// 2. Speak the explanation
+	// 2. Speak the explanation (can be interrupted by 'n')
+	skippedBySpeechNext := false
 	if p.Explanation != "" {
 		if a.program != nil {
 			a.program.Send(SpeakingMsg{Text: p.Explanation})
 		}
-		if err := a.tts.Speak(ctx, p.Explanation); err != nil {
-			return nil, err
+
+		drainCh(a.pttCh.QuickNext)
+
+		speakDone := make(chan error, 1)
+		go func() {
+			speakDone <- a.tts.Speak(ctx, p.Explanation)
+		}()
+
+		select {
+		case err := <-speakDone:
+			if err != nil {
+				if a.program != nil {
+					a.program.Send(SpeakDoneMsg{})
+				}
+				return nil, err
+			}
+		case <-a.pttCh.QuickNext:
+			a.tts.Stop()
+			<-speakDone
+			skippedBySpeechNext = true
 		}
+
 		if a.program != nil {
 			a.program.Send(SpeakDoneMsg{})
 		}
+	}
+
+	// If 'n' pressed during speech, return "next" immediately
+	if skippedBySpeechNext {
+		return json.Marshal(map[string]string{"text": "next", "file_path": p.FilePath})
 	}
 
 	// 3. Wait a moment, then push-to-talk
@@ -584,17 +612,63 @@ fileLoop:
 			})
 		}
 
-		// Speak the explanation
+		// Speak the explanation (can be interrupted by 'n')
+		skippedBySpeechNext := false
 		if entry.explanation != "" {
 			if a.program != nil {
 				a.program.Send(SpeakingMsg{Text: entry.explanation})
 			}
-			if err := a.tts.Speak(ctx, entry.explanation); err != nil {
-				break fileLoop
+
+			// Drain any stale QuickNext before speaking
+			drainCh(a.pttCh.QuickNext)
+
+			// Race: speak vs 'n' key
+			speakDone := make(chan error, 1)
+			go func() {
+				speakDone <- a.tts.Speak(ctx, entry.explanation)
+			}()
+
+			select {
+			case err := <-speakDone:
+				if err != nil {
+					if a.program != nil {
+						a.program.Send(SpeakDoneMsg{})
+					}
+					break fileLoop
+				}
+			case <-a.pttCh.QuickNext:
+				// User pressed 'n' during speech — stop TTS and skip to next
+				a.tts.Stop()
+				<-speakDone // wait for speak goroutine to finish
+				skippedBySpeechNext = true
 			}
+
 			if a.program != nil {
 				a.program.Send(SpeakDoneMsg{})
 			}
+		}
+
+		// If user pressed 'n' during speech, treat as approve and move on
+		if skippedBySpeechNext {
+			a.tracker.MarkReviewed(entry.path)
+			cmd := exec.Command("git", "add", entry.path)
+			cmd.Dir = a.repoDir
+			cmd.Run()
+			a.tracker.Save()
+			reviewed++
+
+			if a.program != nil {
+				a.program.Send(ReviewProgressMsg{
+					Reviewed:    reviewed,
+					Total:       total,
+					CurrentFile: entry.path,
+				})
+			}
+
+			completed = append(completed, map[string]string{
+				"path": entry.path, "group": entry.groupName, "response": "next",
+			})
+			continue
 		}
 
 		// Brief pause then push-to-talk (retry up to 2 times on empty)

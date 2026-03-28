@@ -32,6 +32,7 @@ func Launch(prompt string, mcpConfigPath string) (*Session, error) {
 	args := []string{"-p", prompt, "--output-format", "stream-json", "--verbose"}
 	if mcpConfigPath != "" {
 		args = append(args, "--mcp-config", mcpConfigPath)
+		fmt.Fprintf(os.Stderr, "yap: using MCP config: %s\n", mcpConfigPath)
 	}
 	cmd := exec.Command(claudePath, args...)
 	cmd.Stderr = os.Stderr // let Claude's errors show

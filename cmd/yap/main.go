@@ -117,6 +117,9 @@ func runReview(ctx context.Context, cfg *config.Config, prNum, customPrompt, pre
 	ensureMCPServer()
 	ensureMCPPermissions(dir)
 
+	// Start IPC server before launching Claude so MCP can connect immediately
+	app.StartIPC(ctx)
+
 	// Write a temporary MCP config for the headless Claude session
 	mcpConfigPath := writeMCPConfig(dir)
 	if mcpConfigPath != "" {
